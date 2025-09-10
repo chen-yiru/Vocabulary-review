@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # 後端 API 服務
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: vocab-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./vocab.db
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - JWT_EXPIRE_HOURS=12
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      - RATE_LIMIT_PER_MIN=120
+      - RATE_LIMIT_BURST=200
+    volumes:
+      - ./server/data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 前端 Web 服務
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: vocab-web
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL 資料庫 (可選，預設使用 SQLite)
+  # 如需使用 PostgreSQL，請取消註解以下配置並修改 API 環境變數
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: vocab-db
+  #   environment:
+  #     - POSTGRES_USER=vocab_user
+  #     - POSTGRES_PASSWORD=vocab_password
+  #     - POSTGRES_DB=vocab_db
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U vocab_user -d vocab_db"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+# volumes:
+#   postgres_data:
+
+# 網路配置
+networks:
+  default:
+    name: vocab-network
+
